@@ -20,6 +20,7 @@ export function PaymentList() {
   const [coverage, setCoverage] = useState<DayCoverage[]>([])
   const [summary, setSummary] = useState<{ paidDays: number; totalAmount: number; totalDays: number; overdueDays: number; restDays: number } | null>(null)
   const [loadingCoverage, setLoadingCoverage] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const selectedTaxi = taxis.find((t) => t.plate === selectedPlate)
   const formatCurrency = (n: number) => `$${n.toLocaleString('es-CO')}`
@@ -32,11 +33,13 @@ export function PaymentList() {
       getMonthlySummary(selectedPlate, selectedMonth),
     ]).then(([c, s]) => { setCoverage(c); setSummary(s) })
       .finally(() => setLoadingCoverage(false))
-  }, [selectedPlate, selectedMonth, getCoverageForMonth, getMonthlySummary])
+  }, [selectedPlate, selectedMonth, getCoverageForMonth, getMonthlySummary, refreshKey])
+
+  const refreshCoverage = () => setRefreshKey((k) => k + 1)
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
-    try { await deletePayment(deleteTarget.id); toast('Pago eliminado', 'error'); setDeleteTarget(null) }
+    try { await deletePayment(deleteTarget.id); toast('Pago eliminado', 'error'); setDeleteTarget(null); refreshCoverage() }
     catch { toast('Error al eliminar', 'error') }
   }
 
@@ -174,7 +177,7 @@ export function PaymentList() {
 
       {showForm && (
         <PaymentForm
-          onSave={() => { setShowForm(false); toast('Pago registrado') }}
+          onSave={() => { setShowForm(false); toast('Pago registrado'); refreshCoverage() }}
           onCancel={() => setShowForm(false)}
         />
       )}
@@ -182,7 +185,7 @@ export function PaymentList() {
       {editPayment && (
         <PaymentForm
           editData={{ paymentId: editPayment.id, taxiPlate: editPayment.taxi_plate, amount: editPayment.amount, date: editPayment.date }}
-          onSave={() => { setEditPayment(null); toast('Pago actualizado') }}
+          onSave={() => { setEditPayment(null); toast('Pago actualizado'); refreshCoverage() }}
           onCancel={() => setEditPayment(null)}
         />
       )}
