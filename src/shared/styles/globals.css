@@ -1,0 +1,197 @@
+@import 'tailwindcss';
+
+/* ── Dark mode variant for Tailwind v4 ── */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ── Taxi-inspired theme tokens ── */
+@theme {
+  /* Primary palette */
+  --color-primary: #1B1B1B;
+  --color-primary-light: #2D2D2D;
+  --color-accent: #FFC107;
+  --color-accent-hover: #FFB300;
+  --color-accent-soft: #FFF8E1;
+  --color-accent-glow: rgba(255, 193, 7, 0.25);
+
+  /* Semantic */
+  --color-danger: #E53935;
+  --color-danger-soft: #FFEBEE;
+  --color-success: #2E7D32;
+  --color-success-soft: #E8F5E9;
+  --color-warning: #F57F17;
+  --color-warning-soft: #FFF3E0;
+  --color-info: #1565C0;
+
+  /* Surfaces – light mode defaults */
+  --color-surface: #FAFAF7;
+  --color-surface-card: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-overlay: rgba(0, 0, 0, 0.45);
+
+  /* Text */
+  --color-text: #1B1B1B;
+  --color-text-secondary: #555555;
+  --color-text-muted: #888888;
+  --color-text-inverse: #FFFFFF;
+
+  /* Borders */
+  --color-border: #E0DDD5;
+  --color-border-focus: #FFC107;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px -2px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 8px 24px -4px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(255, 193, 7, 0.15);
+
+  /* Transition */
+  --transition-theme: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ── Dark mode overrides ── */
+[data-theme="dark"] {
+  --color-primary: #FFC107;
+  --color-primary-light: #FFD54F;
+  --color-accent: #FFC107;
+  --color-accent-hover: #FFD54F;
+  --color-accent-soft: rgba(255, 193, 7, 0.12);
+  --color-accent-glow: rgba(255, 193, 7, 0.20);
+
+  --color-danger: #EF5350;
+  --color-danger-soft: rgba(239, 83, 80, 0.15);
+  --color-success: #66BB6A;
+  --color-success-soft: rgba(102, 187, 106, 0.15);
+  --color-warning: #FFA726;
+  --color-warning-soft: rgba(255, 167, 38, 0.15);
+  --color-info: #42A5F5;
+
+  --color-surface: #0A0A0A;
+  --color-surface-card: #141414;
+  --color-surface-elevated: #1C1C1C;
+  --color-surface-overlay: rgba(0, 0, 0, 0.70);
+
+  --color-text: #EAEAEA;
+  --color-text-secondary: #A8A8A8;
+  --color-text-muted: #6B6B6B;
+  --color-text-inverse: #0A0A0A;
+
+  --color-border: #2A2A2A;
+  --color-border-focus: #FFC107;
+
+  --shadow-card: 0 2px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 24px rgba(255, 193, 7, 0.10);
+}
+
+/* ── Base layer ── */
+@layer base {
+  html {
+    font-size: 18px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    transition: var(--transition-theme);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Theme transition on everything */
+  *, *::before, *::after {
+    transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Tap highlight color */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+}
+
+/* ── Toast animation ── */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.25s ease-out;
+}
+
+/* ── Entry transitions ── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+/* ── Decorative background pattern ── */
+@layer utilities {
+  .bg-taxi-pattern {
+    background-image:
+      radial-gradient(circle at 20% 80%, var(--color-accent-glow) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 193, 7, 0.08) 0%, transparent 40%);
+  }
+
+  .bg-taxi-stripe {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 193, 7, 0.03) 10px,
+      rgba(255, 193, 7, 0.03) 20px
+    );
+  }
+
+  .taxi-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pb-safe {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .accent-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-accent);
+    box-shadow: 0 0 8px var(--color-accent-glow);
+  }
+}

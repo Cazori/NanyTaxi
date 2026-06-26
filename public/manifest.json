@@ -1,0 +1,20 @@
+{
+  "name": "Nanytaxi",
+  "short_name": "Nanytaxi",
+  "description": "Gestión de negocio de taxis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#1B1B1B",
+  "orientation": "portrait",
+  "categories": ["business", "finance"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": []
+}
