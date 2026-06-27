@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { TextInput, Select } from '../../shared/ui/FormField'
 import { Button } from '../../shared/ui/Button'
 import { Card } from '../../shared/ui/Card'
-import { usePayments, useTaxis } from '../../db/hooks'
+import { usePayments, useTaxis, getAllCoveredDates, calculateSequentialCoverage } from '../../db/hooks'
 import type { DayOfWeek } from '../../types'
 
 interface Props {
@@ -30,29 +30,35 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
+  /** Días ya cubiertos para el taxi seleccionado (para preview) */
+  const [existingCovered, setExistingCovered] = useState<Set<string>>(new Set())
+
   const taxi = taxis.find((t) => t.plate === selectedPlate)
   const dailyTotal = taxi ? taxi.daily_fee + taxi.daily_savings : 0
   const numAmount = Number(amount)
 
+  // Cargar días cubiertos al cambiar de taxi
+  useEffect(() => {
+    if (!selectedPlate) { setExistingCovered(new Set()); return }
+    getAllCoveredDates(selectedPlate).then(setExistingCovered)
+  }, [selectedPlate, editData])
+
   const coveragePreview = useMemo(() => {
     if (!taxi || !numAmount || numAmount < dailyTotal || dailyTotal <= 0) return null
-    const fullDays = Math.floor(numAmount / dailyTotal)
-    const month = date.slice(0, 7)
-    const [year, m] = month.split('-').map(Number)
-    const daysInMonth = new Date(year, m, 0).getDate()
     const restDayIndex = DAY_INDEX[taxi.rest_day]
-    let count = 0, skippedRest = 0
-    for (let day = 1; day <= daysInMonth && count < fullDays; day++) {
-      if (new Date(year, m - 1, day).getDay() === restDayIndex) { skippedRest++; continue }
-      count++
-    }
-    const lastCoveredDay = count + skippedRest
+    const coveredDays = calculateSequentialCoverage(numAmount, existingCovered, restDayIndex, dailyTotal)
+    if (coveredDays.length === 0) return null
+    const savingsAmount = taxi.daily_savings * coveredDays.length
+    // Encontrar el primer y último día cubierto
+    const fromDate = new Date(coveredDays[0])
+    const lastDate = new Date(coveredDays[coveredDays.length - 1])
     return {
-      fullDays, savingsAmount: taxi.daily_savings * fullDays,
-      lastDate: new Date(year, m - 1, Math.min(lastCoveredDay, daysInMonth)),
-      fromDate: new Date(year, m - 1, 1),
+      fullDays: coveredDays.length,
+      savingsAmount,
+      fromDate,
+      lastDate,
     }
-  }, [taxi, numAmount, dailyTotal, date])
+  }, [taxi, numAmount, dailyTotal, existingCovered])
 
   const handlePlateChange = (plate: string) => {
     setSelectedPlate(plate)
@@ -135,9 +141,14 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
           </div>
           {coveragePreview && (
             <div className="bg-[var(--color-success-soft)] rounded-xl p-3 text-sm">
-              <p className="font-bold text-[var(--color-success)]">✅ Cubre {coveragePreview.fullDays} día{coveragePreview.fullDays > 1 ? 's' : ''}</p>
+              <p className="font-bold text-[var(--color-success)]">
+                ✅ Cubre {coveragePreview.fullDays} día{coveragePreview.fullDays > 1 ? 's' : ''}
+              </p>
               <p className="text-[var(--color-text-secondary)]">
-                Del {coveragePreview.fromDate.toLocaleDateString('es-CO')} al {coveragePreview.lastDate.toLocaleDateString('es-CO')}
+                {coveragePreview.fromDate.toLocaleDateString('es-CO')} → {coveragePreview.lastDate.toLocaleDateString('es-CO')}
+              </p>
+              <p className="text-[var(--color-text-muted)] text-xs mt-1">
+                Se ponen al día los días vencidos más antiguos desde junio 2026
               </p>
               <div className="flex gap-3 mt-1 text-xs">
                 <span>Cuota: {formatCurrency(taxi!.daily_fee * coveragePreview.fullDays)}</span>
@@ -169,6 +180,16 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
     <div className="fixed inset-0 z-50 flex items-end sm:items-center bg-[var(--color-surface-overlay)] p-4">
       <div className="rounded-2xl bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-card)] border border-[var(--color-border)] w-full max-w-md mx-auto space-y-4 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold">{editData ? 'Editar pago' : 'Registrar pago'}</h2>
+
+        {/* Banner informativo: modelo secuencial */}
+        <div className="bg-[var(--color-accent-soft)] rounded-xl p-3 text-xs space-y-1">
+          <p className="font-semibold">📋 Cobertura secuencial desde junio 2026</p>
+          <p className="text-[var(--color-text-muted)]">
+            Los pagos ponen al día los días vencidos más antiguos primero.
+            No podés saltarte deuda de meses anteriores.
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select
             label="Taxi"
@@ -206,7 +227,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
                 ✅ Cubre {coveragePreview.fullDays} día{coveragePreview.fullDays > 1 ? 's' : ''}
               </p>
               <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                Del {coveragePreview.fromDate.toLocaleDateString('es-CO')} al {coveragePreview.lastDate.toLocaleDateString('es-CO')}
+                {coveragePreview.fromDate.toLocaleDateString('es-CO')} → {coveragePreview.lastDate.toLocaleDateString('es-CO')}
               </p>
             </div>
           )}

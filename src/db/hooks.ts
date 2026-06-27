@@ -12,7 +12,7 @@ const DAY_INDEX: Record<DayOfWeek, number> = {
   Domingo: 0, Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6,
 }
 
-async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>> {
+export async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>> {
   const { data } = await supabase
     .from('payments')
     .select('covered_days')
@@ -28,28 +28,35 @@ async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>> {
   return covered
 }
 
-async function calculateCoveredDays(
+/** Fecha desde la que se empieza a contar la deuda */
+export const COVERAGE_START = '2026-06-01'
+
+/** Calcula cobertura SECUENCIAL: cubre los días vencidos más antiguos primero */
+export function calculateSequentialCoverage(
   amount: number,
-  month: string,
   existingCovered: Set<string>,
   restDayIndex: number,
   dailyTotal: number,
-): Promise<string[]> {
-  const [year, m] = month.split('-').map(Number)
-  const daysInMonth = getDaysInMonth(year, m)
+): string[] {
   const fullDays = Math.floor(amount / dailyTotal)
   if (fullDays === 0) return []
 
   const covered: string[] = []
   let remaining = fullDays
 
-  for (let day = 1; day <= daysInMonth && remaining > 0; day++) {
-    const dateStr = `${month}-${String(day).padStart(2, '0')}`
-    if (existingCovered.has(dateStr)) continue
-    const date = new Date(year, m - 1, day)
-    if (date.getDay() === restDayIndex) continue
-    covered.push(dateStr)
-    remaining--
+  const current = new Date(COVERAGE_START)
+  const maxDate = new Date(current)
+  maxDate.setFullYear(maxDate.getFullYear() + 10)
+
+  while (remaining > 0 && current <= maxDate) {
+    const dateStr = current.toISOString().slice(0, 10)
+    const dayOfWeek = current.getDay()
+
+    if (dayOfWeek !== restDayIndex && !existingCovered.has(dateStr)) {
+      covered.push(dateStr)
+      remaining--
+    }
+    current.setDate(current.getDate() + 1)
   }
   return covered
 }
@@ -174,15 +181,15 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     if (dailyTotal <= 0) throw new Error('INVALID_DAILY_TOTAL')
 
     const existingCovered = await getAllCoveredDates(p.taxi_plate)
-    const month = p.date.slice(0, 7)
     const restDayIndex = DAY_INDEX[taxi.rest_day]
 
     let coveredDays: string[] = []
     if (p.amount >= dailyTotal) {
-      coveredDays = await calculateCoveredDays(p.amount, month, existingCovered, restDayIndex, dailyTotal)
+      coveredDays = calculateSequentialCoverage(p.amount, existingCovered, restDayIndex, dailyTotal)
     }
     if (coveredDays.length === 0) coveredDays = [p.date]
 
+    // Verificar que ningún día ya esté cubierto
     for (const day of coveredDays) {
       if (existingCovered.has(day)) throw new Error(`DUPLICATE_DAY: ${day}`)
     }
