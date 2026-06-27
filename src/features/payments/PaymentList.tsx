@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { usePayments, useTaxis } from '../../db/hooks'
+import { usePayments, useTaxis, useUnavailability } from '../../db/hooks'
 import { Card } from '../../shared/ui/Card'
 import { Button } from '../../shared/ui/Button'
 import { Modal } from '../../shared/ui/Modal'
@@ -11,6 +11,7 @@ import type { DayCoverage, Payment } from '../../types'
 export function PaymentList() {
   const { taxis } = useTaxis()
   const { toast } = useToast()
+  const { addUnavailability, removeUnavailability } = useUnavailability()
   const [selectedPlate, setSelectedPlate] = useState<string | undefined>()
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [refreshKey, setRefreshKey] = useState(0)
@@ -20,8 +21,11 @@ export function PaymentList() {
   const [editPayment, setEditPayment] = useState<Payment | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null)
   const [coverage, setCoverage] = useState<DayCoverage[]>([])
-  const [summary, setSummary] = useState<{ paidDays: number; totalAmount: number; totalDays: number; overdueDays: number; restDays: number } | null>(null)
+  const [summary, setSummary] = useState<{ paidDays: number; totalAmount: number; totalDays: number; overdueDays: number; restDays: number; unavailabilityDays: number } | null>(null)
   const [loadingCoverage, setLoadingCoverage] = useState(false)
+
+  // Unavailability management
+  const [unavailTarget, setUnavailTarget] = useState<{ date: string; status: DayCoverage['status'] } | null>(null)
 
   // Auto-seleccionar el primer taxi al cargar
   useEffect(() => {
@@ -76,6 +80,35 @@ export function PaymentList() {
   }
 
   const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+
+  // ── Unavailability handlers ──
+
+  const handleDayClick = (date: string, status: DayCoverage['status']) => {
+    if (!selectedPlate) return
+    setUnavailTarget({ date, status })
+  }
+
+  const handleAddUnavailability = async (reason: string) => {
+    if (!selectedPlate || !unavailTarget) return
+    try {
+      await addUnavailability(selectedPlate, unavailTarget.date, reason)
+      toast(`Día marcado como ${reason.toLowerCase()}`)
+      setUnavailTarget(null)
+      refreshAll()
+    } catch { toast('Error al guardar', 'error') }
+  }
+
+  const handleRemoveUnavailability = async () => {
+    if (!selectedPlate || !unavailTarget) return
+    try {
+      await removeUnavailability(selectedPlate, unavailTarget.date)
+      toast('Novedad eliminada')
+      setUnavailTarget(null)
+      refreshAll()
+    } catch { toast('Error al eliminar', 'error') }
+  }
+
+  const isUnavail = coverage.find((d) => d.date === unavailTarget?.date)?.status === 'unavailability'
 
   return (
     <div className="space-y-4">
@@ -162,6 +195,7 @@ export function PaymentList() {
               yearMonth={selectedMonth}
               dailyFee={selectedTaxi.daily_fee}
               dailySavings={selectedTaxi.daily_savings}
+              onDayClick={handleDayClick}
             />
           )}
 
@@ -175,7 +209,7 @@ export function PaymentList() {
                 </div>
                 <span className="text-2xl">📊</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="grid grid-cols-3 gap-2 mt-3">
                 <div className="rounded-xl bg-[var(--color-success-soft)] p-3 text-center">
                   <p className="text-2xl font-bold text-[var(--color-success)]">{summary.paidDays}</p>
                   <p className="text-xs text-[var(--color-text-secondary)]">Pagados</p>
@@ -184,6 +218,12 @@ export function PaymentList() {
                   <p className="text-2xl font-bold text-[var(--color-danger)]">{summary.overdueDays}</p>
                   <p className="text-xs text-[var(--color-text-secondary)]">Vencidos</p>
                 </div>
+                {summary.unavailabilityDays > 0 && (
+                  <div className="rounded-xl bg-yellow-100 dark:bg-yellow-900/30 p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{summary.unavailabilityDays}</p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">Taller/Inc.</p>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between mt-3 pt-3 border-t border-[var(--color-border)] text-sm">
                 <span className="text-[var(--color-text-secondary)]">
@@ -268,6 +308,52 @@ export function PaymentList() {
         onConfirm={handleDeleteConfirm} onCancel={() => setDeleteTarget(null)}
         confirmText="Eliminar" danger>
         ¿Eliminar pago de <strong>{deleteTarget ? formatCurrency(deleteTarget.amount) : ''}</strong>?
+      </Modal>
+
+      {/* Unavailability modal */}
+      <Modal
+        open={!!unavailTarget}
+        title={isUnavail ? 'Gestionar novedad' : 'Marcar día'}
+        onCancel={() => setUnavailTarget(null)}
+        hideConfirm
+      >
+        <div className="space-y-3">
+          {unavailTarget && (
+            <div className="bg-[var(--color-accent-soft)] rounded-xl p-3">
+              <p className="text-sm font-semibold">Día: {new Date(unavailTarget.date).toLocaleDateString('es-CO')}</p>
+              <p className="text-xs text-[var(--color-text-muted)] capitalize">
+                {unavailTarget.status === 'overdue' ? '🔴 Vencido' :
+                 unavailTarget.status === 'paid' ? '✅ Pagado' :
+                 unavailTarget.status === 'unavailability' ? '⚠ Con novedad' : ''}
+              </p>
+            </div>
+          )}
+
+          {isUnavail ? (
+            <>
+              <p className="text-sm text-[var(--color-text-secondary)]">¿Quitar la novedad de este día?</p>
+              <Button fullWidth variant="danger" onClick={handleRemoveUnavailability}>
+                ❌ Quitar novedad
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--color-text-secondary)]">¿Por qué no trabajó este taxi?</p>
+              <Button fullWidth onClick={() => handleAddUnavailability('Taller')}>
+                🔧 Taller mecánico
+              </Button>
+              <Button fullWidth onClick={() => handleAddUnavailability('Incapacidad')}>
+                🏥 Incapacidad
+              </Button>
+              <Button fullWidth onClick={() => handleAddUnavailability('Feriado')}>
+                🎉 Feriado
+              </Button>
+              <Button fullWidth onClick={() => handleAddUnavailability('Otro')}>
+                📝 Otro motivo
+              </Button>
+            </>
+          )}
+        </div>
       </Modal>
     </div>
   )

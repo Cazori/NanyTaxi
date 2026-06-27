@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS savings_history (
 
 CREATE INDEX IF NOT EXISTS idx_savings_plate ON savings_history(taxi_plate);
 
+CREATE TABLE IF NOT EXISTS unavailability (
+  id SERIAL PRIMARY KEY,
+  taxi_plate TEXT NOT NULL REFERENCES taxis(plate) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  reason TEXT NOT NULL DEFAULT 'Taller',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(taxi_plate, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_unavail_plate_date ON unavailability(taxi_plate, date);
+
 -- ============================================================
 -- SEED: 3 taxis de ejemplo
 -- ============================================================

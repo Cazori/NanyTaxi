@@ -20,11 +20,21 @@ export interface Payment {
   created_at: string
 }
 
+export interface Unavailability {
+  id: number
+  taxi_plate: string
+  date: string
+  reason: string
+  created_at: string
+}
+
 export interface DayCoverage {
   date: string
   day: number
-  status: 'paid' | 'pending' | 'overdue' | 'rest' | 'future'
+  status: 'paid' | 'pending' | 'overdue' | 'rest' | 'future' | 'unavailability'
   amount?: number
+  /** Razón si el día está marcado como no disponible */
+  unavailabilityReason?: string
 }
 
 export type InsuranceType =

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../api/supabase'
-import type { Taxi, Payment, Insurance, ExpiryAlert, AlertLevel, DayCoverage, DayOfWeek, SavingsEntry } from '../types'
+import type { Taxi, Payment, Insurance, ExpiryAlert, AlertLevel, DayCoverage, DayOfWeek, SavingsEntry, Unavailability } from '../types'
 
 /* ─── Helpers ─── */
 
@@ -26,6 +26,82 @@ export async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>
     }
   }
   return covered
+}
+
+export async function getAllUnavailabilityDates(taxiPlate: string): Promise<Map<string, string>> {
+  const { data } = await supabase
+    .from('unavailability')
+    .select('date, reason')
+    .eq('taxi_plate', taxiPlate)
+  const unavail = new Map<string, string>()
+  if (data) {
+    for (const u of data) unavail.set(u.date, u.reason)
+  }
+  return unavail
+}
+
+/** Recalcula la cobertura COMPLETA de un taxi desde cero.
+ *  Se llama después de cualquier cambio en pagos o novedades.
+ *  Barre todos los pagos en orden cronológico y reasigna covered_days
+ *  respetando días ya cubiertos, descanso y novedades. */
+export async function recalcularCobertura(taxiPlate: string): Promise<void> {
+  const taxi = await getTaxiByPlate(taxiPlate)
+  if (!taxi) return
+
+  const restDayIndex = DAY_INDEX[taxi.rest_day]
+  const dailyTotal = taxi.daily_fee + taxi.daily_savings
+  const unavail = await getAllUnavailabilityDates(taxiPlate)
+
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('id, amount, date')
+    .eq('taxi_plate', taxiPlate)
+    .order('date', { ascending: true })
+    .order('id', { ascending: true })
+
+  if (!payments || payments.length === 0) {
+    await recalcAccumulatedSavings(taxiPlate)
+    return
+  }
+
+  const globalCovered = new Set<string>()
+
+  for (const payment of payments) {
+    const fullDays = Math.floor(payment.amount / dailyTotal)
+
+    if (fullDays === 0) {
+      await supabase.from('payments').update({ covered_days: [payment.date] }).eq('id', payment.id)
+      globalCovered.add(payment.date)
+      continue
+    }
+
+    const newCovered: string[] = []
+    let remaining = fullDays
+    const current = new Date(COVERAGE_START)
+    const maxDate = new Date(current)
+    maxDate.setFullYear(maxDate.getFullYear() + 10)
+
+    while (remaining > 0 && current <= maxDate) {
+      const dateStr = current.toISOString().slice(0, 10)
+      const dayOfWeek = current.getDay()
+
+      if (
+        dayOfWeek !== restDayIndex &&
+        !unavail.has(dateStr) &&
+        !globalCovered.has(dateStr)
+      ) {
+        newCovered.push(dateStr)
+        remaining--
+      }
+      current.setDate(current.getDate() + 1)
+    }
+
+    const finalCovered = newCovered.length > 0 ? newCovered : [payment.date]
+    await supabase.from('payments').update({ covered_days: finalCovered }).eq('id', payment.id)
+    for (const d of finalCovered) globalCovered.add(d)
+  }
+
+  await recalcAccumulatedSavings(taxiPlate)
 }
 
 /** Fecha desde la que se empieza a contar la deuda */
@@ -180,54 +256,37 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     const dailyTotal = taxi.daily_fee + taxi.daily_savings
     if (dailyTotal <= 0) throw new Error('INVALID_DAILY_TOTAL')
 
-    const existingCovered = await getAllCoveredDates(p.taxi_plate)
-    const restDayIndex = DAY_INDEX[taxi.rest_day]
-
-    let coveredDays: string[] = []
-    if (p.amount >= dailyTotal) {
-      coveredDays = calculateSequentialCoverage(p.amount, existingCovered, restDayIndex, dailyTotal)
-    }
-    if (coveredDays.length === 0) coveredDays = [p.date]
-
-    // Verificar que ningún día ya esté cubierto
-    for (const day of coveredDays) {
-      if (existingCovered.has(day)) throw new Error(`DUPLICATE_DAY: ${day}`)
-    }
-
-    const savingsDays = coveredDays.length
-    const savingsToAdd = taxi.daily_savings * savingsDays
-
+    // Insert con covered_days vacío — recalcularCobertura lo llena después
     const { error } = await supabase.from('payments').insert({
       taxi_plate: p.taxi_plate,
       amount: p.amount,
       date: p.date,
-      covered_days: coveredDays,
+      covered_days: [],
     })
     if (error) throw error
 
-    if (savingsToAdd > 0) {
-      await supabase.from('taxis').update({ accumulated_savings: taxi.accumulated_savings + savingsToAdd }).eq('plate', p.taxi_plate)
-      await saveSavingsEntry(p.taxi_plate, savingsToAdd, p.date,
-        `Pago de $${p.amount.toLocaleString('es-CO')} (${savingsDays} día${savingsDays > 1 ? 's' : ''})`)
-    }
+    // Recalcular toda la cobertura desde cero
+    await recalcularCobertura(p.taxi_plate)
+
+    // Registrar entrada de ahorros
+    await saveSavingsEntry(p.taxi_plate, 1, p.date,
+      `Pago de $${p.amount.toLocaleString('es-CO')}`)
+
     await fetch()
   }, [fetch])
 
   const deletePayment = useCallback(async (paymentId: number) => {
-    const { data: payment } = await supabase.from('payments').select('*').eq('id', paymentId).single()
+    const { data: payment } = await supabase.from('payments').select('taxi_plate, amount, date').eq('id', paymentId).single()
     if (!payment) throw new Error('PAYMENT_NOT_FOUND')
 
-    const taxi = await getTaxiByPlate(payment.taxi_plate)
-
+    const plate = payment.taxi_plate
     await supabase.from('payments').delete().eq('id', paymentId)
 
-    if (taxi) {
-      await recalcAccumulatedSavings(taxi.plate)
-      await saveSavingsEntry(taxi.plate,
-        -(taxi.daily_savings * (payment.covered_days?.length ?? 1)),
-        payment.date,
-        `Eliminación de pago de $${payment.amount.toLocaleString('es-CO')}`)
-    }
+    await recalcularCobertura(plate)
+
+    await saveSavingsEntry(plate, 0, payment.date,
+      `Eliminación de pago de $${payment.amount.toLocaleString('es-CO')}`)
+
     await fetch()
   }, [fetch])
 
@@ -262,6 +321,7 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
 
     const restDayIndex = DAY_INDEX[taxi.rest_day]
     const existingCovered = await getAllCoveredDates(taxiPlate)
+    const unavail = await getAllUnavailabilityDates(taxiPlate)
     const today = new Date().toISOString().slice(0, 10)
     const result: DayCoverage[] = []
 
@@ -269,11 +329,21 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
       const dateStr = `${yearMonth}-${String(day).padStart(2, '0')}`
       const dateObj = new Date(year, m - 1, day)
       let status: DayCoverage['status']
-      if (dateObj.getDay() === restDayIndex) status = 'rest'
-      else if (existingCovered.has(dateStr)) status = 'paid'
-      else if (dateStr > today) status = 'future'
-      else status = 'overdue'
-      result.push({ date: dateStr, day, status })
+      let unavailabilityReason: string | undefined
+
+      if (dateObj.getDay() === restDayIndex) {
+        status = 'rest'
+      } else if (unavail.has(dateStr)) {
+        status = 'unavailability'
+        unavailabilityReason = unavail.get(dateStr)
+      } else if (existingCovered.has(dateStr)) {
+        status = 'paid'
+      } else if (dateStr > today) {
+        status = 'future'
+      } else {
+        status = 'overdue'
+      }
+      result.push({ date: dateStr, day, status, unavailabilityReason })
     }
     return result
   }, [])
@@ -283,17 +353,19 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     const daysInMonth = getDaysInMonth(year, m)
 
     const taxi = await getTaxiByPlate(taxiPlate)
-    if (!taxi) return { paidDays: 0, totalAmount: 0, totalDays: 0, overdueDays: 0, restDays: 0 }
+    if (!taxi) return { paidDays: 0, totalAmount: 0, totalDays: 0, overdueDays: 0, restDays: 0, unavailabilityDays: 0 }
 
     const restDayIndex = DAY_INDEX[taxi.rest_day]
     const existingCovered = await getAllCoveredDates(taxiPlate)
+    const unavail = await getAllUnavailabilityDates(taxiPlate)
     const today = new Date().toISOString().slice(0, 10)
 
-    let paidDays = 0, restDays = 0, overdueDays = 0
+    let paidDays = 0, restDays = 0, overdueDays = 0, unavailabilityDays = 0
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${yearMonth}-${String(day).padStart(2, '0')}`
       const dateObj = new Date(year, m - 1, day)
       if (dateObj.getDay() === restDayIndex) { restDays++; continue }
+      if (unavail.has(dateStr)) { unavailabilityDays++; continue }
       if (existingCovered.has(dateStr)) { paidDays++; continue }
       if (dateStr <= today) overdueDays++
     }
@@ -307,9 +379,9 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
       .gte('date', start)
       .lte('date', end)
     const totalAmount = (monthPayments ?? []).reduce((sum, p) => sum + p.amount, 0)
-    const totalDays = daysInMonth - restDays
+    const totalDays = daysInMonth - restDays - unavailabilityDays
 
-    return { paidDays, totalAmount, totalDays, overdueDays, restDays }
+    return { paidDays, totalAmount, totalDays, overdueDays, restDays, unavailabilityDays }
   }, [])
 
   return {
@@ -318,6 +390,38 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     getCoverageForMonth, getMonthlySummary,
     refetch: fetch,
   }
+}
+
+/* ─── Unavailability (taller, incapacidad, feriado) ─── */
+
+export function useUnavailability(taxiPlate?: string) {
+  const [unavailability, setUnavailability] = useState<Unavailability[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    let query = supabase.from('unavailability').select('*').order('date', { ascending: false })
+    if (taxiPlate) query = query.eq('taxi_plate', taxiPlate)
+    const { data } = await query
+    if (data) setUnavailability(data)
+    setLoading(false)
+  }, [taxiPlate])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const addUnavailability = useCallback(async (plate: string, date: string, reason: string) => {
+    const { error } = await supabase.from('unavailability').insert({ taxi_plate: plate, date, reason })
+    if (error) throw error
+    await recalcularCobertura(plate)
+    await fetch()
+  }, [fetch])
+
+  const removeUnavailability = useCallback(async (plate: string, date: string) => {
+    await supabase.from('unavailability').delete().eq('taxi_plate', plate).eq('date', date)
+    await recalcularCobertura(plate)
+    await fetch()
+  }, [fetch])
+
+  return { unavailability, loading, addUnavailability, removeUnavailability, refetch: fetch }
 }
 
 /* ─── Insurance ─── */
