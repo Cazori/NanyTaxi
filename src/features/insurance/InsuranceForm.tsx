@@ -21,21 +21,16 @@ export function InsuranceForm({ initial, onSave, onCancel }: Props) {
   const { taxis } = useTaxis()
   const [taxiPlate, setTaxiPlate] = useState(initial?.taxi_plate ?? '')
   const [type, setType] = useState<InsuranceType>(initial?.type ?? 'SOAT')
-  const [issueDate, setIssueDate] = useState(initial?.issue_date ?? '')
   const [expiryDate, setExpiryDate] = useState(initial?.expiry_date ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const taxiOptions = taxis.map((t) => ({ value: t.plate, label: t.plate }))
+  const taxiOptions = taxis.map((t) => ({ value: t.plate, label: `${t.plate} — ${t.driver_name}` }))
 
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!taxiPlate) errs.taxiPlate = 'Seleccione un taxi'
-    if (!issueDate) errs.issueDate = 'Fecha obligatoria'
-    if (!expiryDate) errs.expiryDate = 'Fecha obligatoria'
-    if (issueDate && expiryDate && expiryDate < issueDate) {
-      errs.expiryDate = 'La fecha de vencimiento debe ser posterior a la de expedición'
-    }
+    if (!expiryDate) errs.expiryDate = 'La fecha de vencimiento es obligatoria'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -48,7 +43,7 @@ export function InsuranceForm({ initial, onSave, onCancel }: Props) {
     onSave({
       taxi_plate: taxiPlate,
       type,
-      issue_date: issueDate,
+      issue_date: new Date().toISOString().slice(0, 10), // no la pedimos, se renueva cada año
       expiry_date: expiryDate,
       notes: notes.trim() || undefined,
       renewed: initial?.renewed ?? false,
@@ -62,7 +57,6 @@ export function InsuranceForm({ initial, onSave, onCancel }: Props) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select label="Taxi" value={taxiPlate} onChange={(e) => setTaxiPlate(e.target.value)} options={taxiOptions} />
           <Select label="Tipo de seguro" value={type} onChange={(e) => setType(e.target.value as InsuranceType)} options={typeOptions} />
-          <TextInput label="Fecha de expedición" type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} error={errors.issueDate} />
           <TextInput label="Fecha de vencimiento" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} error={errors.expiryDate} />
           {isPastExpiry && <p className="text-sm text-[var(--color-warning)] font-medium">⚠ Este seguro ya está vencido</p>}
           <TextInput label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observaciones" />

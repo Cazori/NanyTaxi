@@ -39,7 +39,8 @@ export interface Insurance {
   id: number
   taxi_plate: string
   type: InsuranceType
-  issue_date: string
+  /** Opcional porque solo importa la fecha de vencimiento */
+  issue_date?: string
   expiry_date: string
   notes?: string
   renewed: boolean

@@ -30,7 +30,6 @@ export function InsuranceList() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Insurance | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Insurance | null>(null)
-
   const today = new Date()
   const getDaysRemaining = (dateStr: string) => {
     const expiry = new Date(dateStr)
@@ -43,11 +42,16 @@ export function InsuranceList() {
     const taxiInsurances = activeInsurances
       .filter((ins) => ins.taxi_plate === taxi.plate)
       .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
-    return { plate: taxi.plate, insurances: taxiInsurances }
+    return { plate: taxi.plate, driver: taxi.driver_name, insurances: taxiInsurances }
   }).filter((g) => g.insurances.length > 0)
 
   const orphanInsurances = activeInsurances
     .filter((ins) => !taxis.find((t) => t.plate === ins.taxi_plate))
+
+  const handleRenew = async (ins: Insurance) => {
+    await renewInsurance(ins.id)
+    toast('Seguro renovado por 1 año')
+  }
 
   return (
     <div className="space-y-4">
@@ -68,36 +72,40 @@ export function InsuranceList() {
 
       {grouped.map((group) => (
         <div key={group.plate}>
-          <h2 className="text-lg font-bold text-[var(--color-primary)] mb-2">{group.plate}</h2>
+          <h2 className="text-lg font-bold text-[var(--color-primary)] mb-2">
+            {group.plate} — {group.driver}
+          </h2>
           <div className="space-y-2">
             {group.insurances.map((ins, i) => {
               const days = getDaysRemaining(ins.expiry_date)
               const level = getAlertLevel(days)
               return (
                 <Card key={ins.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold">{INSURANCE_LABELS[ins.type] ?? ins.type}</span>
-                        <Badge level={level}>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    {/* Info — se achica si hace falta */}
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+                          {INSURANCE_LABELS[ins.type] ?? ins.type}
+                        </span>
+                        <Badge level={level} className="shrink-0">
                           {days <= 0 ? `${Math.abs(days)} días vencido` : `${days} días`}
                         </Badge>
                       </div>
-                      <p className="text-sm text-[var(--color-text-secondary)]">
+                      <p className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap overflow-hidden text-ellipsis">
                         Vence: {new Date(ins.expiry_date).toLocaleDateString('es-CO')}
                       </p>
-                      {ins.notes && <p className="text-xs text-[var(--color-text-muted)]">{ins.notes}</p>}
+                      {ins.notes && (
+                        <p className="text-xs text-[var(--color-text-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
+                          {ins.notes}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex gap-1">
+                    {/* Botones — siempre visibles */}
+                    <div className="flex gap-1 shrink-0">
                       <button
                         className="text-sm text-[var(--color-primary)] font-bold px-3 py-2 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
-                        onClick={() => {
-                          const newIssue = new Date()
-                          const newExpiry = new Date()
-                          newExpiry.setFullYear(newExpiry.getFullYear() + 1)
-                          renewInsurance(ins.id, newIssue.toISOString().slice(0, 10), newExpiry.toISOString().slice(0, 10))
-                          toast('Seguro renovado')
-                        }}
+                        onClick={() => handleRenew(ins)}
                       >🔄 Renovar</button>
                       <button
                         className="text-base text-[var(--color-primary)] font-bold px-3 py-2 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
@@ -122,13 +130,15 @@ export function InsuranceList() {
           <div className="space-y-2">
             {orphanInsurances.map((ins) => (
               <Card key={ins.id}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-bold">{INSURANCE_LABELS[ins.type]}</span>
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+                      {INSURANCE_LABELS[ins.type]}
+                    </span>
                     <span className="text-[var(--color-text-muted)] ml-2">{ins.taxi_plate}</span>
                   </div>
                   <button
-                    className="text-base text-[var(--color-danger)] font-bold px-4 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-danger-soft)] transition-colors"
+                    className="text-base text-[var(--color-danger)] font-bold px-4 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-danger-soft)] transition-colors shrink-0"
                     onClick={() => setDeleteTarget(ins)}
                   >🗑️</button>
                 </div>

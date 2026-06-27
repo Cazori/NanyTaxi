@@ -138,7 +138,7 @@ export function useSavingsHistory(taxiPlate?: string) {
 
 /* ─── Payments ─── */
 
-export function usePayments(taxiPlate?: string, month?: string) {
+export function usePayments(taxiPlate?: string, month?: string, refreshKey?: number) {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -153,7 +153,7 @@ export function usePayments(taxiPlate?: string, month?: string) {
     const { data } = await query
     if (data) setPayments(data)
     setLoading(false)
-  }, [taxiPlate, month])
+  }, [taxiPlate, month, refreshKey])
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -343,15 +343,17 @@ export function useInsurances() {
     await fetch()
   }, [fetch])
 
-  const renewInsurance = useCallback(async (id: number, newIssueDate: string, newExpiryDate: string) => {
+  const renewInsurance = useCallback(async (id: number) => {
     const { data: existing } = await supabase.from('insurances').select('*').eq('id', id).single()
     if (!existing) return
     await supabase.from('insurances').update({ renewed: true }).eq('id', id)
+    const newExpiry = new Date()
+    newExpiry.setFullYear(newExpiry.getFullYear() + 1)
     await supabase.from('insurances').insert({
       taxi_plate: existing.taxi_plate,
       type: existing.type,
-      issue_date: newIssueDate,
-      expiry_date: newExpiryDate,
+      issue_date: new Date().toISOString().slice(0, 10),
+      expiry_date: newExpiry.toISOString().slice(0, 10),
       renewed: false,
     })
     await fetch()

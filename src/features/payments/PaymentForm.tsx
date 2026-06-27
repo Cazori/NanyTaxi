@@ -7,6 +7,8 @@ import type { DayOfWeek } from '../../types'
 
 interface Props {
   editData?: { paymentId: number; taxiPlate: string; amount: number; date: string }
+  /** Placa del taxi para prefijar en pagos nuevos */
+  defaultPlate?: string
   onSave: () => void
   onCancel: () => void
 }
@@ -15,13 +17,13 @@ const DAY_INDEX: Record<DayOfWeek, number> = {
   Domingo: 0, Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6,
 }
 
-export function PaymentForm({ editData, onSave, onCancel }: Props) {
+export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCancel }: Props) {
   const { taxis } = useTaxis()
   const { registerPayment, updatePayment } = usePayments()
 
   const today = new Date().toISOString().slice(0, 10)
 
-  const [selectedPlate, setSelectedPlate] = useState(editData?.taxiPlate ?? '')
+  const [selectedPlate, setSelectedPlate] = useState(editData?.taxiPlate ?? initialPlate ?? '')
   const [amount, setAmount] = useState(editData ? String(editData.amount) : '')
   const [date, setDate] = useState(editData?.date ?? today)
   const [error, setError] = useState('')
