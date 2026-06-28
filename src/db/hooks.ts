@@ -40,10 +40,15 @@ export async function getAllUnavailabilityDates(taxiPlate: string): Promise<Map<
   return unavail
 }
 
+/** Crea date en hora LOCAL (evita bug de timezone con UTC) */
+function localDate(y: number, m: number, d: number): Date {
+  return new Date(y, m - 1, d)
+}
+
 /** Recalcula la cobertura COMPLETA de un taxi desde cero.
  *  Se llama después de cualquier cambio en pagos o novedades.
  *  Barre todos los pagos en orden cronológico y reasigna covered_days
- *  respetando días ya cubiertos, descanso y novedades. */
+ *  respetando días de descanso Y novedades (taller/incapacidad/feriado). */
 export async function recalcularCobertura(taxiPlate: string): Promise<void> {
   const taxi = await getTaxiByPlate(taxiPlate)
   if (!taxi) return
@@ -66,6 +71,11 @@ export async function recalcularCobertura(taxiPlate: string): Promise<void> {
 
   const globalCovered = new Set<string>()
 
+  // Usar fecha local, no UTC
+  const [sy, sm, sd] = COVERAGE_START.split('-').map(Number)
+  const current = localDate(sy, sm, sd)
+  const maxDate = localDate(sy + 10, sm, sd)
+
   for (const payment of payments) {
     const fullDays = Math.floor(payment.amount / dailyTotal)
 
@@ -77,12 +87,12 @@ export async function recalcularCobertura(taxiPlate: string): Promise<void> {
 
     const newCovered: string[] = []
     let remaining = fullDays
-    const current = new Date(COVERAGE_START)
-    const maxDate = new Date(current)
-    maxDate.setFullYear(maxDate.getFullYear() + 10)
 
     while (remaining > 0 && current <= maxDate) {
-      const dateStr = current.toISOString().slice(0, 10)
+      const yyyy = current.getFullYear()
+      const mm = String(current.getMonth() + 1).padStart(2, '0')
+      const dd = String(current.getDate()).padStart(2, '0')
+      const dateStr = `${yyyy}-${mm}-${dd}`
       const dayOfWeek = current.getDay()
 
       if (
@@ -120,12 +130,15 @@ export function calculateSequentialCoverage(
   const covered: string[] = []
   let remaining = fullDays
 
-  const current = new Date(COVERAGE_START)
-  const maxDate = new Date(current)
-  maxDate.setFullYear(maxDate.getFullYear() + 10)
+  const [sy, sm, sd] = COVERAGE_START.split('-').map(Number)
+  const current = localDate(sy, sm, sd)
+  const maxDate = localDate(sy + 10, sm, sd)
 
   while (remaining > 0 && current <= maxDate) {
-    const dateStr = current.toISOString().slice(0, 10)
+    const yyyy = current.getFullYear()
+    const mm = String(current.getMonth() + 1).padStart(2, '0')
+    const dd = String(current.getDate()).padStart(2, '0')
+    const dateStr = `${yyyy}-${mm}-${dd}`
     const dayOfWeek = current.getDay()
 
     if (dayOfWeek !== restDayIndex && !existingCovered.has(dateStr)) {
@@ -324,7 +337,8 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     const restDayIndex = DAY_INDEX[taxi.rest_day]
     const existingCovered = await getAllCoveredDates(taxiPlate)
     const unavail = await getAllUnavailabilityDates(taxiPlate)
-    const today = new Date().toISOString().slice(0, 10)
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const result: DayCoverage[] = []
 
     for (let day = 1; day <= daysInMonth; day++) {
@@ -360,7 +374,8 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     const restDayIndex = DAY_INDEX[taxi.rest_day]
     const existingCovered = await getAllCoveredDates(taxiPlate)
     const unavail = await getAllUnavailabilityDates(taxiPlate)
-    const today = new Date().toISOString().slice(0, 10)
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
     let paidDays = 0, restDays = 0, overdueDays = 0, unavailabilityDays = 0
     for (let day = 1; day <= daysInMonth; day++) {
@@ -524,7 +539,8 @@ export function useDashboardStats() {
 
   useEffect(() => {
     const fetch = async () => {
-      const today = new Date().toISOString().slice(0, 10)
+      const _now = new Date()
+      const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
 
       const [paymentsRes, taxisRes, insurancesRes] = await Promise.all([
         supabase.from('payments').select('taxi_plate, amount').eq('date', today),

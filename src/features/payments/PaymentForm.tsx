@@ -21,7 +21,8 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
   const { taxis } = useTaxis()
   const { registerPayment, updatePayment } = usePayments()
 
-  const today = new Date().toISOString().slice(0, 10)
+  const _now = new Date()
+  const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
 
   const [selectedPlate, setSelectedPlate] = useState(editData?.taxiPlate ?? initialPlate ?? '')
   const [amount, setAmount] = useState(editData ? String(editData.amount) : '')

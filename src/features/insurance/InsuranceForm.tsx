@@ -40,10 +40,12 @@ export function InsuranceForm({ initial, onSave, onCancel }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
+    const _now = new Date()
+    const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`
     onSave({
       taxi_plate: taxiPlate,
       type,
-      issue_date: new Date().toISOString().slice(0, 10), // no la pedimos, se renueva cada año
+      issue_date: todayStr, // no la pedimos, se renueva cada año
       expiry_date: expiryDate,
       notes: notes.trim() || undefined,
       renewed: initial?.renewed ?? false,
