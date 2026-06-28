@@ -6,6 +6,9 @@ interface Props {
   dailyFee: number
   dailySavings: number
   onDayClick?: (date: string, status: DayCoverage['status']) => void
+  onPrevMonth?: () => void
+  onNextMonth?: () => void
+  canGoPrev?: boolean
 }
 
 const DAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
@@ -42,7 +45,7 @@ function statusIcon(status: DayCoverage['status'], reason?: string): string {
   }
 }
 
-export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, onDayClick }: Props) {
+export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, onDayClick, onPrevMonth, onNextMonth, canGoPrev }: Props) {
   const [year, m] = yearMonth.split('-').map(Number)
   const firstDay = new Date(year, m - 1, 1).getDay()
   const offset = firstDay === 0 ? 6 : firstDay - 1
@@ -71,9 +74,20 @@ export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, o
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={onPrevMonth}
+          disabled={!canGoPrev}
+          className="text-lg px-3 py-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >◀</button>
         <h3 className="font-bold text-lg text-[var(--color-text)]">
           {new Date(year, m - 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}
         </h3>
+        <button
+          type="button"
+          onClick={onNextMonth}
+          className="text-lg px-3 py-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
+        >▶</button>
       </div>
 
       <div className="flex gap-3 text-xs mb-3 flex-wrap">

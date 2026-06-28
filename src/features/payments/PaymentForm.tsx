@@ -242,6 +242,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
             label="Fecha de pago"
             type="date"
             value={date}
+            min="2026-06-01"
             onChange={(e) => setDate(e.target.value)}
           />
 

@@ -13,7 +13,8 @@ export function PaymentList() {
   const { toast } = useToast()
   const { addUnavailability, removeUnavailability } = useUnavailability()
   const [selectedPlate, setSelectedPlate] = useState<string | undefined>()
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const MIN_MONTH = '2026-06'
+  const [selectedMonth, setSelectedMonth] = useState(MIN_MONTH)
   const [refreshKey, setRefreshKey] = useState(0)
   const { payments, getCoverageForMonth, getMonthlySummary, deletePayment } = usePayments(selectedPlate, selectedMonth, refreshKey)
   const [showForm, setShowForm] = useState(false)
@@ -77,10 +78,18 @@ export function PaymentList() {
     } catch { toast('Error al eliminar', 'error') }
   }
 
-  const changeMonth = (delta: number) => {
+  const handlePrevMonth = () => {
     setLoadingCoverage(true)
     const d = new Date(selectedMonth + '-01')
-    d.setMonth(d.getMonth() + delta)
+    d.setMonth(d.getMonth() - 1)
+    const newMonth = d.toISOString().slice(0, 7)
+    if (newMonth >= MIN_MONTH) setSelectedMonth(newMonth)
+  }
+
+  const handleNextMonth = () => {
+    setLoadingCoverage(true)
+    const d = new Date(selectedMonth + '-01')
+    d.setMonth(d.getMonth() + 1)
     setSelectedMonth(d.toISOString().slice(0, 7))
   }
 
@@ -117,21 +126,7 @@ export function PaymentList() {
 
   return (
     <div className="space-y-4">
-      {/* Header + Month selector */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--color-primary)] mb-0">Pagos</h1>
-        <div className="flex items-center gap-2">
-          <button
-            className="text-lg px-3 py-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
-            onClick={() => changeMonth(-1)}
-          >◀</button>
-          <span className="font-bold text-base capitalize min-w-[10rem] text-center">{monthLabel}</span>
-          <button
-            className="text-lg px-3 py-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
-            onClick={() => changeMonth(1)}
-          >▶</button>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold text-[var(--color-primary)]">Pagos</h1>
 
       {/* Taxi cards grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -201,6 +196,9 @@ export function PaymentList() {
               dailyFee={selectedTaxi.daily_fee}
               dailySavings={selectedTaxi.daily_savings}
               onDayClick={handleDayClick}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
+              canGoPrev={selectedMonth > MIN_MONTH}
             />
           )}
 
