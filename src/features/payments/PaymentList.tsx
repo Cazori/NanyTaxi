@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { usePayments, useTaxis, useUnavailability } from '../../db/hooks'
+import { usePayments, useTaxis, useUnavailability, useManualCoverage } from '../../db/hooks'
 import { Card } from '../../shared/ui/Card'
 import { Button } from '../../shared/ui/Button'
 import { Modal } from '../../shared/ui/Modal'
@@ -12,6 +12,7 @@ export function PaymentList() {
   const { taxis } = useTaxis()
   const { toast } = useToast()
   const { addUnavailability, removeUnavailability } = useUnavailability()
+  const { addManualCoverage, removeManualCoverage } = useManualCoverage()
   const [selectedPlate, setSelectedPlate] = useState<string | undefined>()
   const MIN_MONTH = '2026-06'
   const [selectedMonth, setSelectedMonth] = useState(MIN_MONTH)
@@ -26,7 +27,7 @@ export function PaymentList() {
   const [loadingCoverage, setLoadingCoverage] = useState(false)
 
   // Unavailability management
-  const [unavailTarget, setUnavailTarget] = useState<{ date: string; status: DayCoverage['status'] } | null>(null)
+  const [unavailTarget, setUnavailTarget] = useState<{ date: string; status: DayCoverage['status']; manuallyCovered?: boolean } | null>(null)
 
   // Auto-seleccionar el primer taxi al cargar
   useEffect(() => {
@@ -97,9 +98,9 @@ export function PaymentList() {
 
   // ── Unavailability handlers ──
 
-  const handleDayClick = (date: string, status: DayCoverage['status']) => {
+  const handleDayClick = (date: string, status: DayCoverage['status'], manuallyCovered?: boolean) => {
     if (!selectedPlate) return
-    setUnavailTarget({ date, status })
+    setUnavailTarget({ date, status, manuallyCovered })
   }
 
   const handleAddUnavailability = async (reason: string) => {
@@ -123,6 +124,28 @@ export function PaymentList() {
   }
 
   const isUnavail = coverage.find((d) => d.date === unavailTarget?.date)?.status === 'unavailability'
+  const isManuallyCovered = !!unavailTarget?.manuallyCovered
+  const isAutoPaid = unavailTarget?.status === 'paid' && !unavailTarget?.manuallyCovered
+
+  const handleAddManualCoverage = async () => {
+    if (!selectedPlate || !unavailTarget) return
+    try {
+      await addManualCoverage(selectedPlate, unavailTarget.date)
+      toast('Día marcado como pagado manualmente ✅')
+      setUnavailTarget(null)
+      refreshAll()
+    } catch { toast('Error al marcar', 'error') }
+  }
+
+  const handleRemoveManualCoverage = async () => {
+    if (!selectedPlate || !unavailTarget) return
+    try {
+      await removeManualCoverage(selectedPlate, unavailTarget.date)
+      toast('Marca manual eliminada')
+      setUnavailTarget(null)
+      refreshAll()
+    } catch { toast('Error al eliminar', 'error') }
+  }
 
   return (
     <div className="space-y-4">
@@ -313,10 +336,10 @@ export function PaymentList() {
         ¿Eliminar pago de <strong>{deleteTarget ? formatCurrency(deleteTarget.amount) : ''}</strong>?
       </Modal>
 
-      {/* Unavailability modal */}
+      {/* Day actions modal — manual cover + unavailability */}
       <Modal
         open={!!unavailTarget}
-        title={isUnavail ? 'Gestionar novedad' : 'Marcar día'}
+        title={isAutoPaid ? 'Día pagado' : isManuallyCovered ? 'Marca manual' : isUnavail ? 'Gestionar novedad' : 'Marcar día'}
         onCancel={() => setUnavailTarget(null)}
         hideConfirm
       >
@@ -325,23 +348,36 @@ export function PaymentList() {
             <div className="bg-[var(--color-accent-soft)] rounded-xl p-3">
               <p className="text-sm font-semibold">Día: {new Date(unavailTarget.date).toLocaleDateString('es-CO')}</p>
               <p className="text-xs text-[var(--color-text-muted)] capitalize">
-                {unavailTarget.status === 'overdue' ? '🔴 Vencido' :
-                 unavailTarget.status === 'paid' ? '✅ Pagado' :
+                {isManuallyCovered ? '✅ Pagado (manual)' :
+                 isAutoPaid ? '✅ Pagado (automático)' :
+                 unavailTarget.status === 'overdue' ? '🔴 Vencido' :
+                 unavailTarget.status === 'future' ? '⬜ Futuro' :
                  unavailTarget.status === 'unavailability' ? '⚠ Con novedad' : ''}
               </p>
             </div>
           )}
 
-          {isUnavail ? (
+          {isAutoPaid ? (
+            <p className="text-sm text-[var(--color-text-secondary)] text-center">
+              Este día está cubierto por un pago registrado.
+            </p>
+          ) : isManuallyCovered ? (
+            <Button fullWidth variant="danger" onClick={handleRemoveManualCoverage}>
+              ❌ Quitar marca manual
+            </Button>
+          ) : !isUnavail ? (
             <>
-              <p className="text-sm text-[var(--color-text-secondary)]">¿Quitar la novedad de este día?</p>
-              <Button fullWidth variant="danger" onClick={handleRemoveUnavailability}>
-                ❌ Quitar novedad
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-[var(--color-text-secondary)]">¿Por qué no trabajó este taxi?</p>
+              {/* Manual cover — for overdue or future days */}
+              {(unavailTarget?.status === 'overdue' || unavailTarget?.status === 'future') && (
+                <>
+                  <Button fullWidth variant="success" onClick={handleAddManualCoverage}>
+                    ✅ Marcar como pagado manualmente
+                  </Button>
+                  <div className="border-t border-[var(--color-border)] pt-3">
+                    <p className="text-sm text-[var(--color-text-secondary)] text-center mb-2">O marcar novedad:</p>
+                  </div>
+                </>
+              )}
               <Button fullWidth onClick={() => handleAddUnavailability('Taller')}>
                 🔧 Taller mecánico
               </Button>
@@ -353,6 +389,13 @@ export function PaymentList() {
               </Button>
               <Button fullWidth onClick={() => handleAddUnavailability('Otro')}>
                 📝 Otro motivo
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--color-text-secondary)]">¿Quitar la novedad de este día?</p>
+              <Button fullWidth variant="danger" onClick={handleRemoveUnavailability}>
+                ❌ Quitar novedad
               </Button>
             </>
           )}

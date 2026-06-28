@@ -61,6 +61,16 @@ CREATE TABLE IF NOT EXISTS unavailability (
 
 CREATE INDEX IF NOT EXISTS idx_unavail_plate_date ON unavailability(taxi_plate, date);
 
+CREATE TABLE IF NOT EXISTS manual_coverage (
+  id SERIAL PRIMARY KEY,
+  taxi_plate TEXT NOT NULL REFERENCES taxis(plate) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(taxi_plate, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_coverage_plate_date ON manual_coverage(taxi_plate, date);
+
 -- ============================================================
 -- SEED: 3 taxis de ejemplo
 -- ============================================================

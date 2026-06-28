@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../api/supabase'
-import type { Taxi, Payment, Insurance, ExpiryAlert, AlertLevel, DayCoverage, DayOfWeek, SavingsEntry, Unavailability } from '../types'
+import type { Taxi, Payment, Insurance, ExpiryAlert, AlertLevel, DayCoverage, DayOfWeek, SavingsEntry, Unavailability, ManuallyCoveredDay } from '../types'
 
 /* ─── Helpers ─── */
 
@@ -10,6 +10,18 @@ function getDaysInMonth(year: number, month: number): number {
 
 const DAY_INDEX: Record<DayOfWeek, number> = {
   Domingo: 0, Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6,
+}
+
+export async function getAllManuallyCoveredDates(taxiPlate: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('manual_coverage')
+    .select('date')
+    .eq('taxi_plate', taxiPlate)
+  const covered = new Set<string>()
+  if (data) {
+    for (const d of data) covered.add(d.date)
+  }
+  return covered
 }
 
 export async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>> {
@@ -25,6 +37,9 @@ export async function getAllCoveredDates(taxiPlate: string): Promise<Set<string>
       }
     }
   }
+  // Incluir marca manual como verdad absoluta
+  const manual = await getAllManuallyCoveredDates(taxiPlate)
+  for (const d of manual) covered.add(d)
   return covered
 }
 
@@ -70,6 +85,10 @@ export async function recalcularCobertura(taxiPlate: string): Promise<void> {
   }
 
   const globalCovered = new Set<string>()
+
+  // La marca manual es verdad absoluta — el recálculo la respeta
+  const manuallyCovered = await getAllManuallyCoveredDates(taxiPlate)
+  for (const d of manuallyCovered) globalCovered.add(d)
 
   // Usar fecha local, no UTC
   const [sy, sm, sd] = COVERAGE_START.split('-').map(Number)
@@ -337,6 +356,7 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     const restDayIndex = DAY_INDEX[taxi.rest_day]
     const existingCovered = await getAllCoveredDates(taxiPlate)
     const unavail = await getAllUnavailabilityDates(taxiPlate)
+    const manuallyCoveredSet = await getAllManuallyCoveredDates(taxiPlate)
     const now = new Date()
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const result: DayCoverage[] = []
@@ -346,6 +366,7 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
       const dateObj = new Date(year, m - 1, day)
       let status: DayCoverage['status']
       let unavailabilityReason: string | undefined
+      const manuallyCovered = manuallyCoveredSet.has(dateStr)
 
       if (dateObj.getDay() === restDayIndex) {
         status = 'rest'
@@ -359,7 +380,7 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
       } else {
         status = 'overdue'
       }
-      result.push({ date: dateStr, day, status, unavailabilityReason })
+      result.push({ date: dateStr, day, status, unavailabilityReason, manuallyCovered })
     }
     return result
   }, [])
@@ -439,6 +460,38 @@ export function useUnavailability(taxiPlate?: string) {
   }, [fetch])
 
   return { unavailability, loading, addUnavailability, removeUnavailability, refetch: fetch }
+}
+
+/* ─── Manual Coverage (verdad absoluta marcada a mano) ─── */
+
+export function useManualCoverage(taxiPlate?: string) {
+  const [manualCoverage, setManualCoverage] = useState<ManuallyCoveredDay[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetch = useCallback(async () => {
+    let query = supabase.from('manual_coverage').select('*').order('date', { ascending: false })
+    if (taxiPlate) query = query.eq('taxi_plate', taxiPlate)
+    const { data } = await query
+    if (data) setManualCoverage(data)
+    setLoading(false)
+  }, [taxiPlate])
+
+  useEffect(() => { fetch() }, [fetch])
+
+  const addManualCoverage = useCallback(async (plate: string, date: string) => {
+    const { error } = await supabase.from('manual_coverage').insert({ taxi_plate: plate, date })
+    if (error) throw error
+    await recalcularCobertura(plate)
+    await fetch()
+  }, [fetch])
+
+  const removeManualCoverage = useCallback(async (plate: string, date: string) => {
+    await supabase.from('manual_coverage').delete().eq('taxi_plate', plate).eq('date', date)
+    await recalcularCobertura(plate)
+    await fetch()
+  }, [fetch])
+
+  return { manualCoverage, loading, addManualCoverage, removeManualCoverage, refetch: fetch }
 }
 
 /* ─── Insurance ─── */

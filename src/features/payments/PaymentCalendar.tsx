@@ -5,7 +5,7 @@ interface Props {
   yearMonth: string
   dailyFee: number
   dailySavings: number
-  onDayClick?: (date: string, status: DayCoverage['status']) => void
+  onDayClick?: (date: string, status: DayCoverage['status'], manuallyCovered?: boolean) => void
   onPrevMonth?: () => void
   onNextMonth?: () => void
   canGoPrev?: boolean
@@ -68,7 +68,7 @@ export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, o
   const handleClick = (cell: DayCoverage) => {
     if (!onDayClick) return
     if (cell.status === 'rest') return
-    onDayClick(cell.date, cell.status)
+    onDayClick(cell.date, cell.status, cell.manuallyCovered)
   }
 
   return (

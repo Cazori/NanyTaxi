@@ -28,6 +28,13 @@ export interface Unavailability {
   created_at: string
 }
 
+export interface ManuallyCoveredDay {
+  id: number
+  taxi_plate: string
+  date: string
+  created_at: string
+}
+
 export interface DayCoverage {
   date: string
   day: number
@@ -35,6 +42,8 @@ export interface DayCoverage {
   amount?: number
   /** Razón si el día está marcado como no disponible */
   unavailabilityReason?: string
+  /** Marca manual absoluta (verdad incuestionable) */
+  manuallyCovered?: boolean
 }
 
 export type InsuranceType =
