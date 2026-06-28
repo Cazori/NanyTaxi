@@ -61,15 +61,15 @@ export function TaxiList({ onTaxiSelect }: Props) {
             style={{ animationDelay: `${i * 50}ms` }}
             onClick={() => onTaxiSelect(taxi.plate)}
           >
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3">
               {/* Icono grande */}
-              <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center text-3xl shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center text-2xl shrink-0">
                 🚕
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="text-xl font-bold text-[var(--color-text)]">{taxi.plate}</h3>
+                <h3 className="text-lg font-bold text-[var(--color-text)]">{taxi.plate}</h3>
                 <p className="text-base text-[var(--color-text-secondary)] font-medium">
                   🧑‍✈️ {taxi.driver_name}
                 </p>
@@ -111,10 +111,6 @@ export function TaxiList({ onTaxiSelect }: Props) {
               </div>
             </div>
 
-            {/* Hint para tocar */}
-            <p className="text-xs text-[var(--color-text-muted)] text-center mt-3 pt-2 border-t border-[var(--color-border)]">
-              Tocá para ver calendario y pagos →
-            </p>
           </Card>
         ))}
       </div>

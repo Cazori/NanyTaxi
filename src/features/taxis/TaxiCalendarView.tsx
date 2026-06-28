@@ -151,23 +151,24 @@ export function TaxiCalendarView({ plate, onBack }: Props) {
   return (
     <div className="space-y-4">
       {/* Back button + taxi header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           onClick={onBack}
-          className="w-11 h-11 flex items-center justify-center rounded-xl text-xl font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-soft)] transition-colors"
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-lg font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-soft)] transition-colors shrink-0"
           aria-label="Volver"
         >
           ←
         </button>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-[var(--color-text)] truncate">{taxi.plate}</h2>
-          <p className="text-sm text-[var(--color-text-secondary)]">🧑‍✈️ {taxi.driver_name} · Descansa {taxi.rest_day}</p>
+          <h2 className="text-lg font-bold text-[var(--color-text)] truncate">{taxi.plate}</h2>
+          <p className="text-xs text-[var(--color-text-secondary)] truncate">🧑‍✈️ {taxi.driver_name} · {taxi.rest_day}</p>
         </div>
         <button
           onClick={() => toast(`Cuota: ${formatCurrency(taxi.daily_fee)} · Ahorro: ${formatCurrency(taxi.daily_savings)} · Acumulado: ${formatCurrency(taxi.accumulated_savings)}`)}
-          className="text-xs text-[var(--color-text-muted)] underline px-2"
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-base hover:bg-[var(--color-accent-soft)] transition-colors shrink-0"
+          aria-label="Ver ahorro"
         >
-          🏦 {formatCurrency(taxi.accumulated_savings)}
+          🏦
         </button>
       </div>
 

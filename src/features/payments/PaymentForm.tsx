@@ -110,20 +110,16 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
 
   // ── Form ──
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center bg-[var(--color-surface-overlay)] p-4">
-      <div className="rounded-2xl bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-card)] border border-[var(--color-border)] w-full max-w-md mx-auto space-y-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-surface-overlay)] p-3 overflow-y-auto">
+      <div className="rounded-2xl bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)] border border-[var(--color-border)] w-full max-w-md mx-auto space-y-3">
         <h2 className="text-xl font-bold">{editData ? 'Editar pago' : 'Registrar pago'}</h2>
 
         {/* Banner informativo: modelo secuencial */}
-        <div className="bg-[var(--color-accent-soft)] rounded-xl p-3 text-xs space-y-1">
-          <p className="font-semibold">📋 Cobertura secuencial desde junio 2026</p>
-          <p className="text-[var(--color-text-muted)]">
-            Los pagos ponen al día los días vencidos más antiguos primero.
-            No podés saltarte deuda de meses anteriores.
-          </p>
+        <div className="bg-[var(--color-accent-soft)] rounded-xl px-3 py-2 text-xs">
+          📋 Cobertura desde junio 2026 — se ponen al día los días vencidos más antiguos.
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <Select
             label="Taxi"
             value={selectedPlate}
@@ -132,7 +128,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
           />
 
           {taxi && (
-            <div className="bg-[var(--color-accent-soft)] rounded-xl p-3 text-sm space-y-1">
+            <div className="bg-[var(--color-accent-soft)] rounded-xl p-2 text-sm space-y-1">
               <p>Motorista: <strong>{taxi.driver_name}</strong> · Descansa {taxi.rest_day}</p>
               <p>Cuota: <strong>{formatCurrency(taxi.daily_fee)}</strong> + Ahorro: <strong>{formatCurrency(taxi.daily_savings)}</strong></p>
               <p className="text-[var(--color-text-secondary)]">
@@ -155,18 +151,18 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
           />
 
           {coveragePreview && (
-            <div className="bg-[var(--color-success-soft)] rounded-xl p-3 border border-[var(--color-success)]/20">
-              <p className="text-sm font-bold text-[var(--color-success)]">
+            <div className="bg-[var(--color-success-soft)] rounded-xl px-3 py-2 border border-[var(--color-success)]/20 text-xs">
+              <p className="font-bold text-[var(--color-success)]">
                 ✅ Cubre {coveragePreview.fullDays} día{coveragePreview.fullDays > 1 ? 's' : ''}
               </p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+              <p className="text-[var(--color-text-secondary)]">
                 {coveragePreview.fromDate.toLocaleDateString('es-CO')} → {coveragePreview.lastDate.toLocaleDateString('es-CO')}
               </p>
             </div>
           )}
 
           {dailyTotal > 0 && numAmount > 0 && numAmount < dailyTotal && (
-            <div className="bg-[var(--color-warning-soft)] rounded-xl p-2 text-xs text-[var(--color-warning)]">
+            <div className="bg-[var(--color-warning-soft)] rounded-xl px-3 py-2 text-xs text-[var(--color-warning)]">
               ⚠ Monto menor al total por día. Se marcará solo la fecha.
             </div>
           )}

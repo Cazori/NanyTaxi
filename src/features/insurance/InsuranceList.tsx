@@ -106,7 +106,7 @@ export function InsuranceList() {
                       <button
                         className="text-sm text-[var(--color-primary)] font-bold px-3 py-2 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
                         onClick={() => handleRenew(ins)}
-                      >🔄 Renovar</button>
+                      >🔄</button>
                       <button
                         className="text-base text-[var(--color-primary)] font-bold px-3 py-2 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
                         onClick={() => { setEditing(ins); setShowForm(true) }}

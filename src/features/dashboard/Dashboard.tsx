@@ -53,7 +53,7 @@ export function Dashboard() {
       </Card>
 
       <div className="flex gap-3">
-        <Button variant="accent" fullWidth onClick={() => navigate('/payments')}>➕ Registrar pago</Button>
+        <Button variant="accent" fullWidth onClick={() => navigate('/taxis')}>➕ Registrar pago</Button>
         <Button variant="primary" fullWidth onClick={() => navigate('/taxis')}>🚕 Ver taxis</Button>
       </div>
 
