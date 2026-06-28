@@ -325,10 +325,23 @@ export function TaxiCalendarView({ plate, onBack }: Props) {
 
             <div className="space-y-3">
               {isAutoPaid ? (
-                <p className="text-center text-[var(--color-text-secondary)] py-4">
-                  ✅ Este día está cubierto por un pago registrado.
-                  <br />Si necesitás, podés marcar una novedad abajo.
-                </p>
+                <>
+                  <p className="text-center text-[var(--color-text-secondary)] text-sm pb-2">
+                    ✅ Día pagado. Podés agregar una novedad si el taxi no trabajó:
+                  </p>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Taller')} className="py-4 min-h-[56px]">
+                    🔧 Taller mecánico
+                  </Button>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Incapacidad')} className="py-4 min-h-[56px]">
+                    🏥 Incapacidad
+                  </Button>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Feriado')} className="py-4 min-h-[56px]">
+                    🎉 Feriado
+                  </Button>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Otro')} className="py-4 min-h-[56px]">
+                    📝 Otro motivo
+                  </Button>
+                </>
               ) : isManuallyCovered ? (
                 <Button fullWidth variant="danger" onClick={handleRemoveManualCoverage}>
                   ❌ Quitar marca manual
