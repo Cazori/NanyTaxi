@@ -229,8 +229,10 @@ export function usePayments(taxiPlate?: string, month?: string, refreshKey?: num
     let query = supabase.from('payments').select('*').order('date', { ascending: false })
     if (taxiPlate) query = query.eq('taxi_plate', taxiPlate)
     if (taxiPlate && month) {
+      const [y, m] = month.split('-').map(Number)
+      const daysInMonth = new Date(y, m, 0).getDate()
       const start = `${month}-01`
-      const end = `${month}-31`
+      const end = `${month}-${String(daysInMonth).padStart(2, '0')}`
       query = query.gte('date', start).lte('date', end)
     }
     const { data } = await query
