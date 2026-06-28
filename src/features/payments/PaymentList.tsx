@@ -39,12 +39,16 @@ export function PaymentList() {
 
   useEffect(() => {
     if (!selectedPlate || !selectedMonth) { setCoverage([]); setSummary(null); return }
+    let cancelled = false
     setLoadingCoverage(true)
     Promise.all([
       getCoverageForMonth(selectedPlate, selectedMonth),
       getMonthlySummary(selectedPlate, selectedMonth),
-    ]).then(([c, s]) => { setCoverage(c); setSummary(s) })
-      .finally(() => setLoadingCoverage(false))
+    ]).then(([c, s]) => {
+      if (cancelled) return
+      setCoverage(c); setSummary(s)
+    }).finally(() => { if (!cancelled) setLoadingCoverage(false) })
+    return () => { cancelled = true }
   }, [selectedPlate, selectedMonth, getCoverageForMonth, getMonthlySummary, refreshKey])
 
   const refreshAll = () => {
@@ -74,6 +78,7 @@ export function PaymentList() {
   }
 
   const changeMonth = (delta: number) => {
+    setLoadingCoverage(true)
     const d = new Date(selectedMonth + '-01')
     d.setMonth(d.getMonth() + delta)
     setSelectedMonth(d.toISOString().slice(0, 7))
