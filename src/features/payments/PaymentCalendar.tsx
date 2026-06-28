@@ -121,9 +121,9 @@ export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, o
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1.5">
         {DAY_HEADERS.map((h) => (
-          <div key={h} className="text-center text-xs font-bold text-[var(--color-text-muted)] py-1">
+          <div key={h} className="text-center text-sm font-bold text-[var(--color-text-muted)] py-1">
             {h}
           </div>
         ))}
@@ -134,19 +134,13 @@ export function PaymentCalendar({ coverage, yearMonth, dailyFee, dailySavings, o
               type="button"
               onClick={() => handleClick(cell)}
               disabled={cell.status === 'rest'}
-              className={`aspect-square flex flex-col items-center justify-center rounded-xl border-2 text-sm font-bold
+              className={`min-h-[52px] flex flex-col items-center justify-center rounded-xl border-2 text-base font-bold
                 ${statusStyle(cell.status)} transition-transform active:scale-95
                 ${onDayClick && cell.status !== 'rest' ? 'cursor-pointer hover:ring-2 hover:ring-[var(--color-primary)]/50' : 'cursor-default'}`}
-              title={
-                cell.status === 'paid' ? 'Pagado — click para marcar novedad' :
-                cell.status === 'overdue' ? 'Vencido — click para marcar novedad' :
-                cell.status === 'unavailability' ? `${cell.unavailabilityReason ?? 'Novedad'} — click para gestionar` :
-                cell.status === 'rest' ? 'Descanso' : 'Futuro'
-              }
             >
-              <span className="leading-none">{cell.day}</span>
+              <span className="leading-none text-lg">{cell.day}</span>
               {statusIcon(cell.status, cell.unavailabilityReason) && (
-                <span className="text-[10px] leading-none mt-0.5">{statusIcon(cell.status, cell.unavailabilityReason)}</span>
+                <span className="text-sm leading-none mt-0.5">{statusIcon(cell.status, cell.unavailabilityReason)}</span>
               )}
             </button>
           ) : (

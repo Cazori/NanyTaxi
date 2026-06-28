@@ -8,7 +8,11 @@ import { TaxiForm } from './TaxiForm'
 import { SavingsHistoryModal } from './SavingsHistory'
 import type { Taxi } from '../../types'
 
-export function TaxiList() {
+interface Props {
+  onTaxiSelect: (plate: string) => void
+}
+
+export function TaxiList({ onTaxiSelect }: Props) {
   const { taxis, addTaxi, updateTaxi, deleteTaxi } = useTaxis()
   const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
@@ -51,46 +55,66 @@ export function TaxiList() {
 
       <div className="space-y-3">
         {taxis.map((taxi, i) => (
-          <Card key={taxi.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
-            <div className="flex items-start justify-between">
+          <Card
+            key={taxi.id}
+            className="animate-fade-in-up cursor-pointer active:scale-[0.98] transition-transform"
+            style={{ animationDelay: `${i * 50}ms` }}
+            onClick={() => onTaxiSelect(taxi.plate)}
+          >
+            <div className="flex items-start gap-4">
+              {/* Icono grande */}
+              <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center text-3xl shrink-0">
+                🚕
+              </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold">{taxi.plate}</h3>
-                <p className="text-[var(--color-text-secondary)] text-base font-medium">
+                <h3 className="text-xl font-bold text-[var(--color-text)]">{taxi.plate}</h3>
+                <p className="text-base text-[var(--color-text-secondary)] font-medium">
                   🧑‍✈️ {taxi.driver_name}
                 </p>
-                <p className="text-[var(--color-text-muted)] text-xs">
-                  Descansa: {taxi.rest_day}
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Descansa {taxi.rest_day}
                 </p>
                 <div className="flex gap-4 mt-1 text-sm">
-                  <span className="text-[var(--color-text-secondary)]">
-                    Cuota: <strong>{formatCurrency(taxi.daily_fee)}</strong>
+                  <span className="bg-[var(--color-accent-soft)] rounded-lg px-3 py-1 font-bold text-[var(--color-primary)]">
+                    {formatCurrency(taxi.daily_fee)}
                   </span>
-                  <span className="text-[var(--color-text-muted)]">
-                    Ahorro/día: <strong>{formatCurrency(taxi.daily_savings)}</strong>
+                  <span className="bg-[var(--color-success-soft)] rounded-lg px-3 py-1 font-bold text-[var(--color-success)]">
+                    +{formatCurrency(taxi.daily_savings)}
                   </span>
                 </div>
                 <button
-                  className="text-[var(--color-success)] font-bold text-sm mt-1 hover:underline"
-                  onClick={() => setSavingsPlate(taxi.plate)}
+                  className="text-[var(--color-success)] font-bold text-sm mt-2 hover:underline flex items-center gap-1"
+                  onClick={(e) => { e.stopPropagation(); setSavingsPlate(taxi.plate) }}
                 >
-                  🏦 Ahorro total: {formatCurrency(taxi.accumulated_savings)}
+                  🏦 Ahorro: {formatCurrency(taxi.accumulated_savings)}
                 </button>
               </div>
-              <div className="flex gap-1 shrink-0">
+
+              {/* Acciones */}
+              <div className="flex flex-col gap-1 shrink-0">
                 <button
-                  className="text-base text-[var(--color-primary)] font-bold px-4 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
-                  onClick={() => { setEditing(taxi); setShowForm(true) }}
+                  className="text-base text-[var(--color-text-muted)] hover:text-[var(--color-primary)] px-3 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-accent-soft)] transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setEditing(taxi); setShowForm(true) }}
+                  aria-label="Editar taxi"
                 >
                   ✏️
                 </button>
                 <button
-                  className="text-base text-[var(--color-danger)] font-bold px-4 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-danger-soft)] transition-colors"
-                  onClick={() => setDeleteTarget(taxi)}
+                  className="text-base text-[var(--color-text-muted)] hover:text-[var(--color-danger)] px-3 py-3 min-h-[44px] rounded-xl hover:bg-[var(--color-danger-soft)] transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(taxi) }}
+                  aria-label="Eliminar taxi"
                 >
                   🗑️
                 </button>
               </div>
             </div>
+
+            {/* Hint para tocar */}
+            <p className="text-xs text-[var(--color-text-muted)] text-center mt-3 pt-2 border-t border-[var(--color-border)]">
+              Tocá para ver calendario y pagos →
+            </p>
           </Card>
         ))}
       </div>

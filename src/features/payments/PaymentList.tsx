@@ -151,46 +151,23 @@ export function PaymentList() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-[var(--color-primary)]">Pagos</h1>
 
-      {/* Taxi cards grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Taxi pills — selector horizontal */}
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
         {taxis.map((taxi) => {
           const isSelected = selectedPlate === taxi.plate
           return (
-            <Card
+            <button
               key={taxi.plate}
-              className={`cursor-pointer transition-all animate-fade-in-up ${
-                isSelected
-                  ? 'ring-2 ring-[var(--color-primary)] shadow-[var(--shadow-card)]'
-                  : 'opacity-80 hover:opacity-100'
-              }`}
               onClick={() => setSelectedPlate(taxi.plate)}
+              className={`shrink-0 rounded-2xl px-6 py-3 min-h-[60px] font-bold text-lg transition-all ${
+                isSelected
+                  ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] shadow-lg ring-2 ring-[var(--color-primary)]/50'
+                  : 'bg-[var(--color-surface-card)] text-[var(--color-text)] border-2 border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+              }`}
             >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-lg truncate">🚕 {taxi.plate}</p>
-                    <p className="text-sm text-[var(--color-text-secondary)] truncate">👤 {taxi.driver_name}</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">📅 Descansa {taxi.rest_day}</p>
-                    <div className="flex gap-3 text-xs mt-1">
-                      <span>💰 {formatCurrency(taxi.daily_fee)}/día</span>
-                      <span className="text-[var(--color-success)]">+{formatCurrency(taxi.daily_savings)} ahorro</span>
-                    </div>
-                  </div>
-                  {isSelected && <span className="text-lg shrink-0">✅</span>}
-                </div>
-                {taxi.accumulated_savings > 0 && (
-                  <p className="text-xs text-[var(--color-success)] font-semibold">
-                    🏦 Ahorro acumulado: {formatCurrency(taxi.accumulated_savings)}
-                  </p>
-                )}
-                <Button
-                  fullWidth
-                  onClick={(e) => { e.stopPropagation(); handlePay(taxi.plate) }}
-                >
-                  💸 Pagar
-                </Button>
-              </div>
-            </Card>
+              <span className="block text-xl">🚕 {taxi.plate}</span>
+              <span className="block text-xs font-normal opacity-80 whitespace-nowrap">{taxi.driver_name}</span>
+            </button>
           )
         })}
       </div>
@@ -298,12 +275,12 @@ export function PaymentList() {
                     <div className="text-right flex flex-col items-end gap-1">
                       <p className="font-bold text-lg text-[var(--color-success)]">{formatCurrency(p.amount)}</p>
                       <span className="bg-[var(--color-success)] text-white inline-flex items-center rounded-full px-3 py-1 text-xs font-bold">Pagado</span>
-                      <div className="flex gap-1 mt-1">
-                        <button className="text-xs text-[var(--color-primary)] font-bold px-3 py-2 min-h-[36px] rounded-lg hover:bg-[var(--color-accent-soft)] transition-colors"
-                          onClick={() => setEditPayment(p)}>✏️</button>
-                        <button className="text-xs text-[var(--color-danger)] font-bold px-3 py-2 min-h-[36px] rounded-lg hover:bg-[var(--color-danger-soft)] transition-colors"
-                          onClick={() => setDeleteTarget(p)}>🗑️</button>
-                      </div>
+                    <div className="flex gap-2 mt-2">
+                      <button className="flex-1 bg-[var(--color-accent-soft)] text-[var(--color-primary)] font-bold rounded-xl px-4 py-3 min-h-[48px] text-sm hover:brightness-95 transition-all active:scale-95"
+                        onClick={() => setEditPayment(p)}>✏️ Editar</button>
+                      <button className="flex-1 bg-[var(--color-danger-soft)] text-[var(--color-danger)] font-bold rounded-xl px-4 py-3 min-h-[48px] text-sm hover:brightness-95 transition-all active:scale-95"
+                        onClick={() => setDeleteTarget(p)}>🗑️ Eliminar</button>
+                    </div>
                     </div>
                   </div>
                 </Card>
@@ -336,71 +313,93 @@ export function PaymentList() {
         ¿Eliminar pago de <strong>{deleteTarget ? formatCurrency(deleteTarget.amount) : ''}</strong>?
       </Modal>
 
-      {/* Day actions modal — manual cover + unavailability */}
-      <Modal
-        open={!!unavailTarget}
-        title={isAutoPaid ? 'Día pagado' : isManuallyCovered ? 'Marca manual' : isUnavail ? 'Gestionar novedad' : 'Marcar día'}
-        onCancel={() => setUnavailTarget(null)}
-        hideConfirm
-      >
-        <div className="space-y-3">
-          {unavailTarget && (
-            <div className="bg-[var(--color-accent-soft)] rounded-xl p-3">
-              <p className="text-sm font-semibold">Día: {new Date(unavailTarget.date).toLocaleDateString('es-CO')}</p>
-              <p className="text-xs text-[var(--color-text-muted)] capitalize">
-                {isManuallyCovered ? '✅ Pagado (manual)' :
-                 isAutoPaid ? '✅ Pagado (automático)' :
-                 unavailTarget.status === 'overdue' ? '🔴 Vencido' :
-                 unavailTarget.status === 'future' ? '⬜ Futuro' :
-                 unavailTarget.status === 'unavailability' ? '⚠ Con novedad' : ''}
-              </p>
+      {/* Bottom sheet — acciones del día */}
+      {unavailTarget && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setUnavailTarget(null)}>
+          <div className="fixed inset-0 bg-black/40" />
+          <div
+            className="relative w-full max-w-md mx-auto bg-[var(--color-surface-card)] rounded-t-3xl p-6 pt-5 shadow-2xl border-t border-[var(--color-border)] space-y-4 z-10 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-bold text-[var(--color-text)]">
+                  {new Date(unavailTarget.date).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
+                <p className="text-sm text-[var(--color-text-muted)] capitalize">
+                  {isManuallyCovered ? '✅ Pagado (manual)' :
+                   isAutoPaid ? '✅ Pagado (automático)' :
+                   unavailTarget.status === 'overdue' ? '🔴 Vencido' :
+                   unavailTarget.status === 'future' ? '⬜ Futuro' :
+                   unavailTarget.status === 'unavailability' ? `⚠ ${coverage.find(d => d.date === unavailTarget.date)?.unavailabilityReason ?? 'Novedad'}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setUnavailTarget(null)}
+                className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-[var(--color-accent-soft)] text-xl"
+              >✕</button>
             </div>
-          )}
 
-          {isAutoPaid ? (
-            <p className="text-sm text-[var(--color-text-secondary)] text-center">
-              Este día está cubierto por un pago registrado.
-            </p>
-          ) : isManuallyCovered ? (
-            <Button fullWidth variant="danger" onClick={handleRemoveManualCoverage}>
-              ❌ Quitar marca manual
-            </Button>
-          ) : !isUnavail ? (
-            <>
-              {/* Manual cover — for overdue or future days */}
-              {(unavailTarget?.status === 'overdue' || unavailTarget?.status === 'future') && (
+            <div className="space-y-3">
+              {isAutoPaid ? (
+                <p className="text-center text-[var(--color-text-secondary)] py-4">
+                  ✅ Este día está cubierto por un pago registrado.
+                  <br />Si necesitás, podés marcar una novedad abajo.
+                </p>
+              ) : isManuallyCovered ? (
+                <Button fullWidth variant="danger" onClick={handleRemoveManualCoverage}>
+                  ❌ Quitar marca manual
+                </Button>
+              ) : !isUnavail ? (
                 <>
-                  <Button fullWidth variant="success" onClick={handleAddManualCoverage}>
-                    ✅ Marcar como pagado manualmente
+                  {(unavailTarget?.status === 'overdue' || unavailTarget?.status === 'future') && (
+                    <>
+                      <Button fullWidth variant="success" onClick={handleAddManualCoverage} className="text-xl py-4 min-h-[60px]">
+                        ✅ Marcar como pagado
+                      </Button>
+                      <div className="border-t border-[var(--color-border)] pt-2">
+                        <p className="text-sm text-[var(--color-text-muted)] text-center mb-3">O marcar una novedad:</p>
+                      </div>
+                    </>
+                  )}
+                  <Button fullWidth onClick={() => handleAddUnavailability('Taller')} className="py-4 min-h-[56px]">
+                    🔧 Taller mecánico
                   </Button>
-                  <div className="border-t border-[var(--color-border)] pt-3">
-                    <p className="text-sm text-[var(--color-text-secondary)] text-center mb-2">O marcar novedad:</p>
-                  </div>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Incapacidad')} className="py-4 min-h-[56px]">
+                    🏥 Incapacidad
+                  </Button>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Feriado')} className="py-4 min-h-[56px]">
+                    🎉 Feriado
+                  </Button>
+                  <Button fullWidth onClick={() => handleAddUnavailability('Otro')} className="py-4 min-h-[56px]">
+                    📝 Otro motivo
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-center text-[var(--color-text-secondary)] py-2">
+                    Este día tiene una novedad activa.
+                  </p>
+                  <Button fullWidth variant="danger" onClick={handleRemoveUnavailability} className="py-4 min-h-[56px]">
+                    ❌ Quitar novedad
+                  </Button>
                 </>
               )}
-              <Button fullWidth onClick={() => handleAddUnavailability('Taller')}>
-                🔧 Taller mecánico
-              </Button>
-              <Button fullWidth onClick={() => handleAddUnavailability('Incapacidad')}>
-                🏥 Incapacidad
-              </Button>
-              <Button fullWidth onClick={() => handleAddUnavailability('Feriado')}>
-                🎉 Feriado
-              </Button>
-              <Button fullWidth onClick={() => handleAddUnavailability('Otro')}>
-                📝 Otro motivo
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-[var(--color-text-secondary)]">¿Quitar la novedad de este día?</p>
-              <Button fullWidth variant="danger" onClick={handleRemoveUnavailability}>
-                ❌ Quitar novedad
-              </Button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </Modal>
+      )}
+
+      {/* FAB — botón flotante para pagar */}
+      {selectedPlate && (
+        <button
+          onClick={() => handlePay(selectedPlate)}
+          className="fixed bottom-24 right-4 z-40 w-16 h-16 rounded-full bg-[var(--color-success)] text-white shadow-xl flex items-center justify-center text-3xl font-bold active:scale-90 transition-transform hover:brightness-110"
+        >
+          💸
+        </button>
+      )}
     </div>
   )
 }

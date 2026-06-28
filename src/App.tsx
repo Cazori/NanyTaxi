@@ -3,8 +3,7 @@ import { ThemeProvider } from './shared/ThemeContext'
 import { ToastProvider } from './shared/Toast'
 import { Layout } from './features/layout/Layout'
 import { Dashboard } from './features/dashboard/Dashboard'
-import { TaxiList } from './features/taxis/TaxiList'
-import { PaymentList } from './features/payments/PaymentList'
+import { TaxiPage } from './features/taxis/TaxiPage'
 import { InsuranceList } from './features/insurance/InsuranceList'
 
 export default function App() {
@@ -15,8 +14,7 @@ export default function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/taxis" element={<TaxiList />} />
-              <Route path="/payments" element={<PaymentList />} />
+              <Route path="/taxis" element={<TaxiPage />} />
               <Route path="/insurance" element={<InsuranceList />} />
             </Route>
           </Routes>

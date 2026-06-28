@@ -4,7 +4,6 @@ import { useTheme } from '../../shared/ThemeContext'
 const tabs = [
   { to: '/', label: 'Tablero', icon: '📊' },
   { to: '/taxis', label: 'Taxis', icon: '🚕' },
-  { to: '/payments', label: 'Pagos', icon: '💰' },
   { to: '/insurance', label: 'Seguros', icon: '📋' },
 ]
 

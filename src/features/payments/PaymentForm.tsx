@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { TextInput, Select } from '../../shared/ui/FormField'
 import { Button } from '../../shared/ui/Button'
-import { Card } from '../../shared/ui/Card'
 import { usePayments, useTaxis, getAllCoveredDates, calculateSequentialCoverage } from '../../db/hooks'
 import type { DayOfWeek } from '../../types'
 
@@ -29,7 +28,6 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
   const [date, setDate] = useState(editData?.date ?? today)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [confirming, setConfirming] = useState(false)
 
   /** Días ya cubiertos para el taxi seleccionado (para preview) */
   const [existingCovered, setExistingCovered] = useState<Set<string>>(new Set())
@@ -50,7 +48,6 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
     const coveredDays = calculateSequentialCoverage(numAmount, existingCovered, restDayIndex, dailyTotal)
     if (coveredDays.length === 0) return null
     const savingsAmount = taxi.daily_savings * coveredDays.length
-    // Encontrar el primer y último día cubierto
     const fromDate = new Date(coveredDays[0])
     const lastDate = new Date(coveredDays[coveredDays.length - 1])
     return {
@@ -68,7 +65,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
     else setAmount('')
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!selectedPlate || !amount || !date) {
@@ -77,12 +74,8 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
     }
     if (numAmount <= 0) { setError('El monto debe ser mayor a 0'); return }
     if (!taxi) { setError('Seleccioná un taxi'); return }
-    setConfirming(true)
-  }
 
-  const confirmSave = async () => {
     setSaving(true)
-    setError('')
     try {
       if (editData) {
         await updatePayment(editData.paymentId, {
@@ -105,7 +98,6 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
         else if (err.message.startsWith('DUPLICATE_DAY')) setError('Algunos días ya están cubiertos')
         else setError(`Error: ${err.message}`)
       } else setError('Error al registrar el pago')
-      setConfirming(false)
     } finally { setSaving(false) }
   }
 
@@ -116,67 +108,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
 
   const formatCurrency = (n: number) => `$${n.toLocaleString('es-CO')}`
 
-  // ── Confirmation step ──
-  if (confirming) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center bg-[var(--color-surface-overlay)] p-4">
-        <Card className="w-full max-w-md mx-auto space-y-4">
-          <h2 className="text-xl font-bold">Confirmar pago</h2>
-          <div className="bg-[var(--color-accent-soft)] rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">Taxi</span>
-              <span className="font-bold text-lg">{selectedPlate}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">Motorista</span>
-              <span className="font-bold">{taxi?.driver_name}</span>
-            </div>
-            <div className="border-t border-[var(--color-border)] pt-2 flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">Monto</span>
-              <span className="font-bold text-2xl text-[var(--color-success)]">{formatCurrency(numAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-[var(--color-text-secondary)]">Fecha</span>
-              <span>{new Date(date).toLocaleDateString('es-CO')}</span>
-            </div>
-          </div>
-          {coveragePreview && (
-            <div className="bg-[var(--color-success-soft)] rounded-xl p-3 text-sm">
-              <p className="font-bold text-[var(--color-success)]">
-                ✅ Cubre {coveragePreview.fullDays} día{coveragePreview.fullDays > 1 ? 's' : ''}
-              </p>
-              <p className="text-[var(--color-text-secondary)]">
-                {coveragePreview.fromDate.toLocaleDateString('es-CO')} → {coveragePreview.lastDate.toLocaleDateString('es-CO')}
-              </p>
-              <p className="text-[var(--color-text-muted)] text-xs mt-1">
-                Se ponen al día los días vencidos más antiguos desde junio 2026
-              </p>
-              <div className="flex gap-3 mt-1 text-xs">
-                <span>Cuota: {formatCurrency(taxi!.daily_fee * coveragePreview.fullDays)}</span>
-                <span className="text-[var(--color-success)]">+ Ahorro: {formatCurrency(coveragePreview.savingsAmount)}</span>
-              </div>
-            </div>
-          )}
-          {dailyTotal > 0 && numAmount < dailyTotal && (
-            <div className="bg-[var(--color-warning-soft)] rounded-xl p-2 text-xs text-[var(--color-warning)]">
-              ⚠ Monto menor a la cuota diaria. Se marcará solo la fecha de pago.
-            </div>
-          )}
-          {error && <p className="text-sm text-[var(--color-danger)] font-medium">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <Button variant="ghost" fullWidth onClick={() => setConfirming(false)} type="button" disabled={saving}>
-              ← Volver
-            </Button>
-            <Button fullWidth onClick={confirmSave} disabled={saving}>
-              {saving ? 'Guardando...' : '✅ Confirmar pago'}
-            </Button>
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
-  // ── Form step ──
+  // ── Form ──
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center bg-[var(--color-surface-overlay)] p-4">
       <div className="rounded-2xl bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-card)] border border-[var(--color-border)] w-full max-w-md mx-auto space-y-4 max-h-[90vh] overflow-y-auto">
@@ -254,7 +186,7 @@ export function PaymentForm({ editData, defaultPlate: initialPlate, onSave, onCa
               Cancelar
             </Button>
             <Button fullWidth type="submit" disabled={saving}>
-              {saving ? 'Guardando...' : '📋 Revisar y confirmar'}
+              {saving ? 'Guardando...' : '💾 Pagar'}
             </Button>
           </div>
         </form>
